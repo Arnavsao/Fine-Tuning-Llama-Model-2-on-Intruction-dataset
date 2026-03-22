@@ -2,7 +2,7 @@ import modal
 
 app = modal.App("llama-finetune")
 
-# 🔧 Environment (optimized)
+# Environment
 image = (
     modal.Image.debian_slim(python_version="3.10")
     .pip_install(
@@ -18,14 +18,14 @@ image = (
     )
 )
 
-# 🔐 Secrets + storage
+# Secrets + storage
 secret = modal.Secret.from_name("huggingface")
 volume = modal.Volume.from_name("llama-vol", create_if_missing=True)
 
 
 @app.function(
     image=image,
-    gpu="A100",  # 🔥 best for LLaMA
+    gpu="A100",
     timeout=86400,
     secrets=[secret],
     volumes={"/data": volume}
@@ -44,10 +44,10 @@ def train():
     from trl import SFTTrainer
     from huggingface_hub import login
 
-    # 🔐 Login
+    # Login
     login(os.environ["HUGGINGFACE_TOKEN"])
 
-    print("🚀 GPU:", torch.cuda.get_device_name(0))
+    print("GPU:", torch.cuda.get_device_name(0))
 
     # ---------------- CONFIG ----------------
     model_name = "meta-llama/Llama-2-7b-chat-hf"
@@ -131,7 +131,7 @@ def train():
     trainer.model.save_pretrained(new_model)
     tokenizer.save_pretrained(new_model)
 
-    print("✅ Training complete! Model saved at:", new_model)
+    print("Training complete. Model saved at:", new_model)
 
 
 @app.local_entrypoint()

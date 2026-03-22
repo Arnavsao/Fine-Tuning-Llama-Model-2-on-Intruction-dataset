@@ -1,59 +1,59 @@
-# 🦙 Fine-Tuning LLaMA 2 on an Instruction Dataset
+# Fine-Tuning LLaMA 2 on an Instruction Dataset
 
-Fine-tune **Meta's LLaMA 2 7B Chat** model on an instruction-following dataset using **QLoRA** (Quantized Low-Rank Adaptation), running entirely on **Modal's cloud GPU infrastructure** — no local GPU required.
+Fine-tune Meta's LLaMA 2 7B Chat model on an instruction-following dataset using QLoRA (Quantized Low-Rank Adaptation), running entirely on Modal's cloud GPU infrastructure — no local GPU required.
 
 ---
 
-## 📌 Overview
+## Overview
 
 This project demonstrates how to efficiently fine-tune a large language model (LLM) with limited compute by combining:
 
 - **4-bit quantization** (QLoRA via `bitsandbytes`) to drastically reduce VRAM usage
 - **LoRA adapters** (via `peft`) to train only a small fraction of parameters
-- **Modal** for serverless GPU execution on an NVIDIA A100 80 GB (SXM4)
+- **Modal** for serverless GPU execution on an NVIDIA A100 (SXM4)
 - **SFTTrainer** (Supervised Fine-Tuning Trainer from `trl`) for clean, high-level training orchestration
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 ```
-┌─────────────────────────────────────────────────────┐
-│                    Modal Cloud                       │
-│  ┌───────────────────────────────────────────────┐  │
-│  │         NVIDIA A100-SXM4-40GB GPU             │  │
-│  │                                               │  │
-│  │  ┌─────────────────────────────────────────┐  │  │
-│  │  │         LLaMA 2 7B Chat (frozen)        │  │  │
-│  │  │         loaded in 4-bit NF4             │  │  │
-│  │  │                                         │  │  │
-│  │  │    + LoRA Adapters (trainable only)     │  │  │
-│  │  │      rank=64, alpha=16, dropout=0.1     │  │  │
-│  │  └─────────────────────────────────────────┘  │  │
-│  │                      │                        │  │
-│  │            SFTTrainer (trl)                   │  │
-│  │                      │                        │  │
-│  │          Instruction Dataset (1k)             │  │
-│  └───────────────────────────────────────────────┘  │
-│                                                      │
-│   Secrets: HuggingFace Token                         │
-│   Volume:  /data  (persistent model storage)         │
-└─────────────────────────────────────────────────────┘
++-----------------------------------------------------+
+|                    Modal Cloud                      |
+|  +-------------------------------------------------+ |
+|  |           NVIDIA A100-SXM4-40GB GPU             | |
+|  |                                                 | |
+|  |  +-------------------------------------------+ | |
+|  |  |         LLaMA 2 7B Chat (frozen)          | | |
+|  |  |         loaded in 4-bit NF4               | | |
+|  |  |                                           | | |
+|  |  |    + LoRA Adapters (trainable only)       | | |
+|  |  |      rank=64, alpha=16, dropout=0.1       | | |
+|  |  +-------------------------------------------+ | |
+|  |                      |                          | |
+|  |            SFTTrainer (trl)                     | |
+|  |                      |                          | |
+|  |          Instruction Dataset (1,000 examples)   | |
+|  +-------------------------------------------------+ |
+|                                                      |
+|   Secrets : HuggingFace Token                        |
+|   Volume  : /data  (persistent model storage)        |
++-----------------------------------------------------+
 ```
 
 ### How QLoRA Works
 
 Instead of fine-tuning all 7 billion parameters, QLoRA:
 
-1. **Quantizes** the base model weights to **4-bit NF4** (NormalFloat4) — reducing memory by ~4× with minimal quality loss
+1. **Quantizes** the base model weights to **4-bit NF4** (NormalFloat4) — reducing memory by ~4x with minimal quality loss
 2. **Inserts LoRA adapters** — small trainable rank-decomposition matrices — into the transformer layers
 3. **Only trains the adapters** (~0.1% of total parameters), keeping the frozen base model in 4-bit
 
-This makes it possible to fine-tune a 7B model on a single A100 GPU in minutes.
+This makes it possible to fine-tune a 7B model on a single A100 GPU in under an hour.
 
 ---
 
-## 🧩 Stack
+## Stack
 
 | Component | Library / Service |
 |---|---|
@@ -68,9 +68,10 @@ This makes it possible to fine-tune a 7B model on a single A100 GPU in minutes.
 
 ---
 
-## ⚙️ Hyperparameters
+## Hyperparameters
 
 ### Quantization (`BitsAndBytesConfig`)
+
 | Parameter | Value | Description |
 |---|---|---|
 | `load_in_4bit` | `True` | Load base model in 4-bit |
@@ -78,6 +79,7 @@ This makes it possible to fine-tune a 7B model on a single A100 GPU in minutes.
 | `bnb_4bit_compute_dtype` | `bfloat16` | Compute dtype (A100 native) |
 
 ### LoRA (`LoraConfig`)
+
 | Parameter | Value | Description |
 |---|---|---|
 | `r` | `64` | LoRA rank — controls adapter size |
@@ -87,6 +89,7 @@ This makes it possible to fine-tune a 7B model on a single A100 GPU in minutes.
 | `task_type` | `CAUSAL_LM` | Causal language modelling |
 
 ### Training (`TrainingArguments`)
+
 | Parameter | Value | Description |
 |---|---|---|
 | `num_train_epochs` | `1` | Single pass over the dataset |
@@ -103,7 +106,7 @@ This makes it possible to fine-tune a 7B model on a single A100 GPU in minutes.
 
 ---
 
-## 🗂️ Project Structure
+## Project Structure
 
 ```
 Llama Fine Tuning/
@@ -114,7 +117,7 @@ Llama Fine Tuning/
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
@@ -145,22 +148,22 @@ Modal will:
 1. Spin up a Debian container with all dependencies pre-installed
 2. Mount your script into the container
 3. Allocate an A100 GPU
-4. Download the model + dataset from HuggingFace
+4. Download the model and dataset from HuggingFace
 5. Run QLoRA fine-tuning
 6. Save the fine-tuned adapters to `/data/llama-finetuned` (persisted in a Modal Volume)
 
 ---
 
-## 💾 Output
+## Output
 
 The fine-tuned LoRA adapter weights are saved to the Modal Volume at:
 
 ```
-/data/llama-finetuned/   ← adapter weights + tokenizer
-/data/results/           ← training checkpoints
+/data/llama-finetuned/   # adapter weights + tokenizer
+/data/results/           # training checkpoints
 ```
 
-To use the fine-tuned model, load the base model and merge the adapters:
+To use the fine-tuned model, load the base model and attach the adapters:
 
 ```python
 from peft import PeftModel
@@ -173,7 +176,7 @@ tokenizer = AutoTokenizer.from_pretrained("/data/llama-finetuned")
 
 ---
 
-## 📚 References
+## References
 
 - [LLaMA 2 Paper](https://arxiv.org/abs/2307.09288) — Touvron et al., 2023
 - [QLoRA Paper](https://arxiv.org/abs/2305.14314) — Dettmers et al., 2023
